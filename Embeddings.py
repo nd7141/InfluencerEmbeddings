@@ -5,7 +5,7 @@ import random, time, math, os, sys
 import numpy as np
 from collections import Counter
 
-class AnonymousWalks(object):
+class AnonymousEmbeddings(object):
     '''
     Computes Anonymous Walks of a Graph.
     Class has a method to embed a graph into a vector space using anonymous walk distribution.
@@ -43,25 +43,23 @@ class AnonymousWalks(object):
         self.graph = nx.read_graphml(filename)
         return self.graph
 
-    def create_random_walk_graph(self):
+    def create_random_walk_graph(self, probs = None):
         '''Creates a probabilistic graph from graph.
         If edges have parameter "weight" then it will use the weights in computing probabilities.'''
         if self.graph is None:
             raise ValueError("You should first create a weighted graph.")
 
-        # get name of the label on graph edges (assume all label names are the same)
-        label_name = 'weight'
-        # for e in self.graph.edges_iter(data=True):
-        #     label_name = e[2].keys()[0]
-        #     break
-
         RW = nx.DiGraph()
-        for node in self.graph:
-            edges = self.graph[node]
-            total = float(sum([edges[v].get(label_name, 1) for v in edges if v != node]))
-            for v in edges:
-                if v != node:
-                    RW.add_edge(node, v, weight = edges[v].get(label_name,1) / total)
+        if probs:
+            for edge in self.graph.edges():
+                RW.add_edge(edge[0], edge[1], weight = probs[edge])
+        else:
+            for node in self.graph:
+                edges = self.graph[node]
+                total = float(sum([edges[v].get('weight', 1) for v in edges if v != node]))
+                for v in edges:
+                    if v != node:
+                        RW.add_edge(node, v, weight = edges[v].get('weight', 1) / total)
         self.rw_graph = RW
 
     def _all_paths(self, steps, keep_last = True):
@@ -173,6 +171,7 @@ class AnonymousWalks(object):
 
 
         node_aw = dict()
+
         for node in self.rw_graph:
             walks = dict()
             all_walks = []
@@ -182,7 +181,7 @@ class AnonymousWalks(object):
             print('Total walks of size {} in a graph:'.format(steps), len(all_walks))
         return node_aw
 
-    def embed(self, steps, method = 'exact', MC = None, delta = 0.1, eps = 0.1,
+    def embed(self, steps, probs, method = 'exact', MC = None, delta = 0.1, eps = 0.1,
               labels = None, verbose = True):
         '''Get embeddings of a graph using anonymous walk distribution.
         method can be sampling, exact
@@ -194,7 +193,7 @@ class AnonymousWalks(object):
         Return vector and meta information as dictionary.'''
 
         # Create a random walk instance of the graph first
-        self.create_random_walk_graph()
+        self.create_random_walk_graph(probs)
 
         if labels is None:
             self._all_paths(steps)
@@ -239,13 +238,31 @@ if __name__ == '__main__':
     random.seed(2018)
 
     G = nx.gn_graph(20)
-    G = nx.erdos_renyi_graph(20, 0.5)
+    # G = nx.erdos_renyi_graph(20, 0.5)
     print(G.edges())
 
-    aw = AnonymousWalks(G=G)
-    E, nodes, meta = aw.embed(3, 'exact', 10)
-    print(E)
-    print(len(nodes))
+    G = nx.DiGraph()
+    G.add_edge(0, 1)
+    G.add_edge(1, 2)
+    G.add_edge(2, 0)
+    G.add_edge(2, 1)
+
+
+    from Propagation import Propagation
+    ppg = Propagation(G)
+    probs = ppg.multi_model()
+
+    aw = AnonymousEmbeddings(G=G)
+    E, nodes, meta = aw.embed(3, probs, method = 'exact')
+    for node in aw.rw_graph:
+        print(node, end=' ')
+        for v in aw.rw_graph[node]:
+            print(v, end=' ')
+        print()
+
+
+    print(E[0, 0])
+    print(nodes)
     print(meta)
 
     console = []

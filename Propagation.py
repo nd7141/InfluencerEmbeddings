@@ -12,14 +12,11 @@ class Propagation(object):
         self.graph = nx.read_graphml(filename)
 
     def weighted_model(self):
-        inds = self.graph.in_degree(weight='weight')
+        inds = self.graph.in_degree()
 
         probs = dict()
         for e in self.graph.edges(data=True):
-            w = 1
-            if len(e[2]):
-                w = e[2]['weight']
-            probs[(e[0], e[1])] = w/inds[e[1]]
+            probs[(e[0], e[1])] = 1/inds[e[1]]
 
         return probs
 
@@ -34,16 +31,15 @@ class Propagation(object):
         return probs
 
     def spread_IC(self, seed_set, MC, probs):
-        sub = len(seed_set)
         spreads = []
         for _ in range(MC):
-            activated = set(seed_set)
-            for node in seed_set:
+            activated = seed_set.copy()
+            for node in activated:
                 es = self.graph.out_edges(node)
                 for e in es:
                     if e[1] not in activated and random.random() < probs[e]:
-                        activated.add(e[1])
-            spreads.append(len(activated) - sub)
+                        activated.append(e[1])
+            spreads.append(len(activated))
         return np.mean(spreads)
 
     def greedy(self, k, MC, probs):

@@ -19,11 +19,12 @@ class AnonymousEmbeddings(object):
         self.paths = dict()
         self.__methods = ['sampling', 'exact']
 
-    def read_graph_from_text(self, filename, header = True, weights = True, sep = ',', directed = False):
+    def read_graph_from_text(self, filename, header = True, weights = True, sep = ',', undirected = True):
         '''Read from Text Files.'''
-        G = nx.Graph()
-        if directed:
-            G = nx.DiGraph()
+        G = nx.DiGraph()
+
+        node2id = dict()
+        curr = 1
         with open(filename) as f:
             if header:
                 next(f)
@@ -31,12 +32,32 @@ class AnonymousEmbeddings(object):
                 splitted = line.strip().split(sep)
                 u = splitted[0]
                 v = splitted[1]
-                G.add_edge(u, v)
-                if weights:
-                    w = float(splitted[2])
-                    G[u][v]['weight'] = w
+                if u not in node2id:
+                    node2id[u] = curr
+                    curr += 1
+                if v not in node2id:
+                    node2id[v] = curr
+                    curr += 1
+                G.add_edge(node2id[u], node2id[v])
+                if undirected:
+                    G.add_edge(node2id[v], node2id[u])
         self.graph = G
         return self.graph
+
+    def write_graph_for_cpp(self, filename):
+        with open(filename, 'w+') as f:
+            f.write(f"{len(self.graph)} {len(self.graph.edges())}\n")
+            for e in self.graph.edges():
+                f.write(f"{e[0]} {e[1]}\n")
+
+    def write_graph_weighted_for_cpp(self, filename):
+        from Propagation import Propagation as ppg
+        p = ppg(G=self.graph)
+        probs = p.weighted_model()
+        with open(filename, 'w+') as f:
+            f.write(f"{len(self.graph)} {len(self.graph.edges())}\n")
+            for e in self.graph.edges():
+                f.write(f"{e[0]} {e[1]} {probs[e[0], e[1]]}\n")
 
     def read_graphml(self, filename):
         '''Read graph from graphml format.'''
@@ -237,32 +258,17 @@ class AnonymousEmbeddings(object):
 if __name__ == '__main__':
     random.seed(2018)
 
-    G = nx.gn_graph(20)
-    # G = nx.erdos_renyi_graph(20, 0.5)
-    print(G.edges())
+    aw = AnonymousEmbeddings()
 
-    G = nx.DiGraph()
-    G.add_edge(0, 1)
-    G.add_edge(1, 2)
-    G.add_edge(2, 0)
-    G.add_edge(2, 1)
+    G = aw.read_graph_from_text(filename= 'data.txt', sep='\t')
+
+    # aw.write_graph_for_cpp('data_for_cpp.txt')
+    # aw.write_graph_weighted_for_cpp('data_weighted_for_cpp.txt')
 
 
-    from Propagation import Propagation
-    ppg = Propagation(G)
-    probs = ppg.multi_model()
-
-    aw = AnonymousEmbeddings(G=G)
-    E, nodes, meta = aw.embed(3, probs, method = 'exact')
-    for node in aw.rw_graph:
-        print(node, end=' ')
-        for v in aw.rw_graph[node]:
-            print(v, end=' ')
-        print()
-
-
-    print(E[0, 0])
-    print(nodes)
-    print(meta)
+    from Propagation import Propagation as ppg
+    p = ppg(G = G)
+    probs = p.weighted_model()
+    s = p.spread_IC([1], 100, probs)
 
     console = []

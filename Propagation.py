@@ -2,6 +2,7 @@ import networkx as nx
 import random
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 
 class Propagation(object):
     def __init__(self, G=None):
@@ -54,7 +55,9 @@ class Propagation(object):
 
     def greedy(self, k, MC, model):
         seed_set = []
+        meta = {}
         for size in range(k):
+            start2it = time.time()
             print('iteration', size)
             max_spread = -1
             for node in self.graph:
@@ -65,7 +68,9 @@ class Propagation(object):
                         max_spread = node_spread
                         max_node = node
             seed_set += [max_node]
-        return seed_set
+            finish2it = time.time()
+            meta[size] = [max_spread, finish2it - start2it]
+        return seed_set, meta
 
 
 
@@ -79,6 +84,14 @@ if __name__ == '__main__':
     ppg = Propagation()
     ppg.graph = G
 
+
+
     seed_set = ppg.greedy(5, 10, 'multi')
+
+    S =
+
+    # get time for greedy
+    for i in range(k):
+        ppg.greedy()
 
     console = []

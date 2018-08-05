@@ -13,21 +13,17 @@ class Propagation(object):
         self.graph = nx.read_graphml(filename)
 
     def weighted_model(self):
-        inds = self.graph.in_degree(weight='data')
+        inds = self.graph.in_degree()
 
         probs = dict()
         for e in self.graph.edges(data=True):
-            w = 1
-            if len(e[2]):
-                w = e[2]['data']
-            probs[(e[0], e[1])] = w/inds[e[1]]
+            probs[(e[0], e[1])] = 1/inds[e[1]]
 
         return probs
 
     def multi_model(self, p_range = None):
         if p_range is None:
             p_range = [0.01, 0.02, 0.04, 0.08]
-            p_range = [0.5]
 
         probs = dict()
         for e in self.graph.edges():
@@ -35,38 +31,37 @@ class Propagation(object):
 
         return probs
 
-    def spread_IC(self, seed_set, MC, model = 'multi'):
-        if model == 'weighted':
-            probs = self.weighted_model()
-        elif model == 'multi':
-            probs = self.multi_model()
-
-        sub = len(seed_set)
+    def spread_IC(self, seed_set, MC, probs):
         spreads = []
         for _ in range(MC):
-            activated = set(seed_set)
-            for node in seed_set:
+            activated = seed_set.copy()
+            for node in activated:
                 es = self.graph.out_edges(node)
                 for e in es:
                     if e[1] not in activated and random.random() < probs[e]:
-                        activated.add(e[1])
-            spreads.append(len(activated) - sub)
+                        activated.append(e[1])
+            spreads.append(len(activated))
         return np.mean(spreads)
 
-    def greedy(self, k, MC, model):
+    def greedy(self, k, MC, probs):
         seed_set = []
         meta = {}
         for size in range(k):
             start2it = time.time()
             print('iteration', size)
+            print('Processed', end=' ')
+            percent = len(self.graph)//10
             max_spread = -1
-            for node in self.graph:
+            for en, node in enumerate(self.graph):
+                if en > 0 and not en % percent:
+                    print("{}%".format(en/percent*10), end=' ')
                 if node not in seed_set:
                     temp_set = seed_set + [node]
-                    node_spread = self.spread_IC(temp_set, MC, model)
+                    node_spread = self.spread_IC(temp_set, MC, probs)
                     if node_spread > max_spread:
                         max_spread = node_spread
                         max_node = node
+            print()
             seed_set += [max_node]
             finish2it = time.time()
             meta[size] = [max_spread, finish2it - start2it]
@@ -77,7 +72,6 @@ class Propagation(object):
 
 if __name__ == '__main__':
     random.seed(2018)
-
 
     G = nx.gn_graph(20)
     print(G.edges())

@@ -103,7 +103,7 @@ class Propagation(object):
         if filename is not None:
             with open(filename, 'a+') as f:
                 final_spread = self.spread_IC(seed_set, MC, probs)
-                f.write("Final spread:", final_spread)
+                f.write(f"Final spread: {final_spread}")
 
         return seed_set, meta
 

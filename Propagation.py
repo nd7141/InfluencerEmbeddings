@@ -99,6 +99,12 @@ class Propagation(object):
             if filename is not None:
                 with open(filename, 'a+') as f:
                     f.write(f"{max_node} {max_spread} {finish2it - start2it}\n")
+
+        if filename is not None:
+            with open(filename, 'a+') as f:
+                final_spread = self.spread_IC(seed_set, MC, probs)
+                f.write("Final spread:", final_spread)
+
         return seed_set, meta
 
 
@@ -106,8 +112,18 @@ class Propagation(object):
 
 if __name__ == '__main__':
     random.seed(2018)
+    import argparse
 
-    G = nx.read_edgelist('../Data/grqc_cpp.txt', create_using=nx.DiGraph())
+    parser = argparse.ArgumentParser(description='Influencer Embeddings Experiment')
+
+    parser.add_argument('--exp', default=1, help='Experiment number', type=int)
+    parser.add_argument('--MC', default=50, help='Monte-Carlo simulations', type=int)
+
+    args = parser.parse_args()
+
+
+
+    G = nx.read_edgelist('./grqc_cpp.txt', create_using=nx.DiGraph())
     print(type(G))
     print(len(G), len(G.edges()))
 
@@ -120,39 +136,41 @@ if __name__ == '__main__':
     ppg = Propagation(G=G)
     probs = ppg.weighted_model()
 
-    # Experiment 1: standard greedy
+    exp = args.exp
+    MC = args.MC
+
+    if exp == 1:
+        # Experiment 1: standard greedy
+        seed, meta = ppg.greedy(k=20, MC=MC, probs=probs, filename='greedy_full.txt')
+        print('Seed set:', seed)
+        print('Meta:', meta)
+        with open('grqc_greedy_seed.txt', 'w+') as f:
+            for node in seed:
+                f.write(f"{node}\n")
+        write_meta("grqc_greedy_results.csv", meta)
+    elif exp == 2:
+        # Experiment 2: greedy with candidates embeddings
+        top = []
+        with open('./GRQC_final_ranging.txt') as f:
+            for line in f:
+                top.append(str(int(line)))
+                if len(top) == 200:
+                    break
+        S = []
+        with open('./classifier_ranging.txt') as f:
+            for line in f:
+                S.append(str(int(line)))
+                if len(S) == 10:
+                    break
+        seed, meta = ppg.greedy_emb(k=10, MC=MC, probs=probs, candidates=top, seed_set=S, filename="greedy_candidates_full.txt")
+        print('Seed set:', seed)
+        print('Meta:', meta)
+        with open('candidates_seed.txt', 'w+') as f:
+            for node in seed:
+                f.write(f"{node}\n")
+            spread = ppg.spread_IC(seed, MC=100, probs=probs)
+        write_meta("candidates_results.csv", meta)
 
 
-
-
-
-    seed, meta = ppg.greedy(k=20, MC=100, probs=probs, filename='greedy_full.txt')
-    print('Seed set:', seed)
-    print('Meta:', meta)
-    with open('grqc_greedy_seed.txt', 'w+') as f:
-        for node in seed:
-            f.write(f"{node}\n")
-    write_meta("grqc_greedy_results.csv", meta)
-
-    # Experiment 2: greedy with candidates embeddings
-    # top = []
-    # with open('../Data/classifier_ranging.txt') as f:
-    #     for line in f:
-    #         top.append(str(int(line)))
-    #         if len(top) == 200:
-    #             break
-    # S = []
-    with open('../Data/Wiki_final_ranging.txt') as f:
-        for line in f:
-            S.append(str(int(line)))
-            if len(S) == 10:
-                break
-    seed, meta = ppg.greedy_emb(k=10, MC=100, probs=probs, candidates=top, seed_set=S, filename="greedy_candidates_full.txt")
-    print('Seed set:', seed)
-    print('Meta:', meta)
-    with open('candidates_seed.txt', 'w+') as f:
-        for node in seed:
-            f.write(f"{node}\n")
-    write_meta("candidates_results.csv", meta)
 
     console = []

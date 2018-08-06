@@ -42,6 +42,7 @@ class AnonymousEmbeddings(object):
                 if undirected:
                     G.add_edge(node2id[v], node2id[u])
         self.graph = G
+        print(f'Read graph with {len(G)} nodes and {len(G.edges())} edges')
         return self.graph
 
     def write_graph_for_cpp(self, filename):
@@ -260,15 +261,16 @@ if __name__ == '__main__':
 
     aw = AnonymousEmbeddings()
 
-    G = aw.read_graph_from_text(filename= 'data.txt', sep='\t')
+    G = aw.read_graph_from_text(filename= '../Data/Wiki-Vote.txt', sep='\t')
 
-    # aw.write_graph_for_cpp('data_for_cpp.txt')
+    # aw.write_graph_for_cpp('../Data/wiki_test.txt')
     # aw.write_graph_weighted_for_cpp('data_weighted_for_cpp.txt')
 
 
-    from Propagation import Propagation as ppg
-    p = ppg(G = G)
-    probs = p.weighted_model()
-    s = p.spread_IC([1], 100, probs)
+    # from Propagation import Propagation as ppg
+    # p = ppg(G = G)
+    #
+    # probs = p.weighted_model()
+    # s = p.spread_IC([1], 100, probs)
 
     console = []

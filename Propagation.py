@@ -1,8 +1,9 @@
 import networkx as nx
 import random
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import time
+import sys
 
 class Propagation(object):
     def __init__(self, G=None):
@@ -43,18 +44,20 @@ class Propagation(object):
             spreads.append(len(activated))
         return np.mean(spreads)
 
-    def greedy(self, k, MC, probs):
+    def greedy(self, k, MC, probs, filename=None):
         seed_set = []
         meta = {}
         for size in range(k):
             start2it = time.time()
             print('iteration', size)
             print('Processed', end=' ')
+            sys.stdout.flush()
             percent = len(self.graph)//10
             max_spread = -1
             for en, node in enumerate(self.graph):
                 if en > 0 and not en % percent:
                     print("{}%".format(en/percent*10), end=' ')
+                    sys.stdout.flush()
                 if node not in seed_set:
                     temp_set = seed_set + [node]
                     node_spread = self.spread_IC(temp_set, MC, probs)
@@ -65,6 +68,37 @@ class Propagation(object):
             seed_set += [max_node]
             finish2it = time.time()
             meta[size] = [max_spread, finish2it - start2it]
+            if filename is not None:
+                with open(filename, 'a+') as f:
+                    f.write(f"{max_node} {max_spread} {finish2it - start2it}\n")
+        return seed_set, meta
+
+    def greedy_emb(self, k, MC, probs, candidates, seed_set, filename = None):
+        meta = {}
+        for size in range(k):
+            start2it = time.time()
+            print('iteration', size)
+            print('Processed', end=' ')
+            sys.stdout.flush()
+            percent = len(self.graph)//10
+            max_spread = -1
+            for en, node in enumerate(candidates):
+                if en > 0 and not en % percent:
+                    print("{}%".format(en/percent*10), end=' ')
+                    sys.stdout.flush()
+                if node not in seed_set:
+                    temp_set = seed_set + [node]
+                    node_spread = self.spread_IC(temp_set, MC, probs)
+                    if node_spread > max_spread:
+                        max_spread = node_spread
+                        max_node = node
+            print()
+            seed_set += [max_node]
+            finish2it = time.time()
+            meta[size] = [max_spread, finish2it - start2it]
+            if filename is not None:
+                with open(filename, 'a+') as f:
+                    f.write(f"{max_node} {max_spread} {finish2it - start2it}\n")
         return seed_set, meta
 
 
@@ -73,19 +107,52 @@ class Propagation(object):
 if __name__ == '__main__':
     random.seed(2018)
 
-    G = nx.gn_graph(20)
-    print(G.edges())
-    ppg = Propagation()
-    ppg.graph = G
+    G = nx.read_edgelist('../Data/grqc_cpp.txt', create_using=nx.DiGraph())
+    print(type(G))
+    print(len(G), len(G.edges()))
+
+    def write_meta(filename, meta):
+        with open(filename, 'w') as f:
+            for line in sorted(meta.items()):
+                f.write(f"{line[0]}, {line[1][0]}, {line[1][1]}\n")
+
+
+    ppg = Propagation(G=G)
+    probs = ppg.weighted_model()
+
+    # Experiment 1: standard greedy
 
 
 
-    seed_set = ppg.greedy(5, 10, 'multi')
 
-    S =
 
-    # get time for greedy
-    for i in range(k):
-        ppg.greedy()
+    seed, meta = ppg.greedy(k=20, MC=100, probs=probs, filename='greedy_full.txt')
+    print('Seed set:', seed)
+    print('Meta:', meta)
+    with open('grqc_greedy_seed.txt', 'w+') as f:
+        for node in seed:
+            f.write(f"{node}\n")
+    write_meta("grqc_greedy_results.csv", meta)
+
+    # Experiment 2: greedy with candidates embeddings
+    # top = []
+    # with open('../Data/classifier_ranging.txt') as f:
+    #     for line in f:
+    #         top.append(str(int(line)))
+    #         if len(top) == 200:
+    #             break
+    # S = []
+    with open('../Data/Wiki_final_ranging.txt') as f:
+        for line in f:
+            S.append(str(int(line)))
+            if len(S) == 10:
+                break
+    seed, meta = ppg.greedy_emb(k=10, MC=100, probs=probs, candidates=top, seed_set=S, filename="greedy_candidates_full.txt")
+    print('Seed set:', seed)
+    print('Meta:', meta)
+    with open('candidates_seed.txt', 'w+') as f:
+        for node in seed:
+            f.write(f"{node}\n")
+    write_meta("candidates_results.csv", meta)
 
     console = []
